@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ごはん調整 - みんなの食事日程シェア</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .calendar-cell {
+      transition: all 0.15s ease-in-out;
+    }
+    .calendar-cell:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
+      <button id="brandLogoBtn" type="button" class="flex items-center gap-2.5 text-left group focus:outline-none">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-sm group-hover:shadow transition shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base sm:text-lg tracking-tight text-slate-900">ごはん調整</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 hidden xs:inline-block">最大30名対応</span>
+          </div>
+          <p class="text-xs text-slate-500 hidden md:block">ID登録＆パスワード保護対応・みんなの出欠をすぐ集計</p>
+        </div>
+      </button>
+
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- Auth Status Button -->
+        <button id="navAuthBtn" type="button" class="px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1.5" title="ID登録・パスワード設定">
+          <svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+          </svg>
+          <span id="navAuthLabel" class="truncate max-w-[100px] sm:max-w-[140px]">ID登録/ログイン</span>
+        </button>
+
+        <button id="navEventsBtn" type="button" class="px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <span class="hidden sm:inline">イベント一覧</span>
+          <span id="eventCountBadge" class="px-1.5 py-0.5 text-xs rounded-full bg-slate-200 text-slate-700 font-semibold">0</span>
+        </button>
+
+        <button id="navImportBtn" type="button" class="px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100 transition flex items-center gap-1.5" title="共有コードやJSONから読み込む">
+          <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+          </svg>
+          <span class="hidden lg:inline">共有データ読込</span>
+        </button>
+
+        <button id="navCreateBtn" type="button" class="px-3 sm:px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition flex items-center gap-1">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>新規イベント作成</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- VIEW 1: EVENT DETAIL / ATTENDANCE TABLE -->
+    <section id="viewEventDetail" class="hidden space-y-6 animate-fade-in">
+      <!-- Event Header Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div class="space-y-2 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="detailCategoryBadge" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                🍽️ 食事・ディナー
+              </span>
+              <span id="detailParticipantCount" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                👥 回答 0 / 30名
+              </span>
+              <span id="detailOwnerBadge" class="hidden items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+              <span id="detailPasswordBadge" class="hidden items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                🔒 パスワード保護中
+              </span>
+              <span id="detailUpdatedTime" class="text-xs text-slate-400"></span>
+            </div>
+            <h1 id="detailEventTitle" class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight"></h1>
+            <p id="detailEventMemo" class="text-sm text-slate-600 whitespace-pre-line leading-relaxed"></p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button id="shareEventBtn" type="button" class="px-3.5 py-2 rounded-xl text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white transition flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+              </svg>
+              <span>みんなにシェア</span>
+            </button>
+            <button id="editEventBtn" type="button" class="px-3.5 py-2 rounded-xl text-sm font-medium bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              <span>イベント編集</span>
+            </button>
+            <button id="exportCsvBtn" type="button" class="px-3 py-2 rounded-xl text-sm font-medium bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 transition flex items-center gap-1.5" title="CSV形式でダウンロード">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span class="hidden sm:inline">CSV出力</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Best Date Highlight Banner -->
+        <div id="bestDateBanner" class="mt-5 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start sm:items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold text-sm">
+              👑
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-emerald-800 uppercase tracking-wider">現在のもっとも集まりやすい候補日</div>
+              <div id="bestDateText" class="text-base sm:text-lg font-bold text-slate-900 mt-0.5"></div>
+            </div>
+          </div>
+          <button id="scrollToAnswerBtn" type="button" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm shadow-sm transition shrink-0 text-center">
+            ＋ 出欠を入力する
+          </button>
+        </div>
+      </div>
+
+      <!-- Schedule Matrix Table Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60">
+          <div class="flex items-center gap-2">
+            <h2 class="font-bold text-slate-800 text-base">日程候補とみんなの出欠表</h2>
+            <span class="text-xs text-slate-500">（最大30名・名前をクリックすると回答を修正できます）</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-medium">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none text-slate-600">
+              <input type="checkbox" id="filterBestOnlyToggle" class="rounded text-orange-600 focus:ring-orange-500" />
+              <span>有力候補日のみ表示</span>
+            </label>
+            <div class="hidden sm:flex items-center gap-2 text-slate-500 border-l border-slate-200 pl-3">
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>◯ 行ける</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>△ 微妙・調整可</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>✕ 行けない</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse min-w-[640px]">
+            <thead>
+              <tr id="matrixHeaderRow" class="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
+                <!-- Populated dynamically -->
+              </tr>
+            </thead>
+            <tbody id="matrixBodyRows" class="divide-y divide-slate-200 text-sm">
+              <!-- Populated dynamically -->
+            </tbody>
+            <tfoot id="matrixCommentFoot" class="bg-slate-50/80 border-t border-slate-200 text-xs">
+              <!-- Populated dynamically -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Attendance Input / Edit Section -->
+      <div id="answerFormSection" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+              ✏️
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 id="answerFormHeading" class="text-lg font-bold text-slate-900">出欠を入力する</h2>
+                <span id="capacityRemainingBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">残り30名登録可</span>
+              </div>
+              <p id="answerFormSubtext" class="text-xs text-slate-500">あなたの名前と各日程の「◯・△・✕」を選択して登録してください（最大30名まで）</p>
+            </div>
+          </div>
+          <button id="cancelEditParticipantBtn" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            新規入力に戻る
+          </button>
+        </div>
+
+        <!-- Capacity Full Notice -->
+        <div id="capacityFullBanner" class="hidden mb-5 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-medium">
+          ⚠️ このイベントの参加回答が上限（最大30名）に達しています。既存の回答を編集する場合は、上の出欠表のお名前をクリックしてください。
+        </div>
+
+        <form id="participantForm" class="space-y-5">
+          <input type="hidden" id="editingParticipantId" value="" />
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label for="participantNameInput" class="block text-sm font-semibold text-slate-700 mb-1">
+                お名前（ニックネーム） <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="participantNameInput"
+                required
+                maxlength="24"
+                placeholder="例：田中、たくや、佐藤など"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm transition"
+              />
+            </div>
+            <div>
+              <label for="participantCommentInput" class="block text-sm font-semibold text-slate-700 mb-1">
+                一言コメント・希望（任意）
+              </label>
+              <input
+                type="text"
+                id="participantCommentInput"
+                maxlength="80"
+                placeholder="例：19時半以降だと助かります！"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm transition"
+              />
+            </div>
+            <div>
+              <label for="participantPinInput" class="block text-sm font-semibold text-slate-700 mb-1">
+                編集用パスワード（任意）
+              </label>
+              <input
+                type="password"
+                id="participantPinInput"
+                maxlength="20"
+                placeholder="後から自分だけ修正する場合に設定"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm transition"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+              <span class="text-sm font-semibold text-slate-700">候補日ごとの出欠を選択</span>
+              <div class="flex items-center gap-1.5 text-xs">
+                <span class="text-slate-400 mr-1">一括セット:</span>
+                <button type="button" data-bulk-status="ok" class="bulk-status-btn px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold border border-emerald-200 transition">すべて ◯</button>
+                <button type="button" data-bulk-status="maybe" class="bulk-status-btn px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold border border-amber-200 transition">すべて △</button>
+                <button type="button" data-bulk-status="ng" class="bulk-status-btn px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 transition">すべて ✕</button>
+              </div>
+            </div>
+
+            <div id="participantDatesList" class="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/40">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <button
+              type="button"
+              id="deleteParticipantBtn"
+              class="hidden px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
+            >
+              この回答を削除する
+            </button>
+            <div class="flex items-center gap-3 ml-auto">
+              <button
+                type="submit"
+                id="submitParticipantBtn"
+                class="px-6 py-2.5 rounded-xl text-sm font-bold bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>出欠を登録する</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 2: CREATE / EDIT EVENT (DEFAULT INITIAL VIEW) -->
+    <section id="viewEventEditor" class="space-y-6 animate-fade-in">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-200">
+          <div>
+            <h1 id="editorHeading" class="text-xl sm:text-2xl font-bold text-slate-900">新しい食事・イベント日程をつくる</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">カレンダーの日付をタップするだけで、候補日を簡単に追加できます（参加人数：最大30名）</p>
+          </div>
+          <button id="cancelEditorBtn" type="button" class="hidden px-3.5 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+            キャンセル
+          </button>
+        </div>
+
+        <form id="eventEditorForm" class="space-y-6">
+          <input type="hidden" id="editorEventId" value="" />
+
+          <!-- Step 1 & 2 Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left column: Event details + ID / Password -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">
+                STEP 1. イベント基本情報＆パスワード設定
+              </div>
+
+              <div>
+                <label for="editorTitleInput" class="block text-sm font-semibold text-slate-700 mb-1">
+                  イベント名 <span class="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="editorTitleInput"
+                  required
+                  maxlength="60"
+                  placeholder="例：お疲れ様ディナー＆飲み会🍻"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm transition"
+                />
+              </div>
+
+              <div>
+                <label for="editorCategorySelect" class="block text-sm font-semibold text-slate-700 mb-1">
+                  シーン・ジャンル
+                </label>
+                <select
+                  id="editorCategorySelect"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm bg-white transition"
+                >
+                  <option value="🍽️ 食事・ディナー">🍽️ 食事・ディナー</option>
+                  <option value="🍻 飲み会・懇親会">🍻 飲み会・懇親会</option>
+                  <option value="☕ カフェ・ランチ">☕ カフェ・ランチ</option>
+                  <option value="🍖 BBQ・ホームパーティー">🍖 BBQ・ホームパーティー</option>
+                  <option value="🎉 お祝い・歓送迎会">🎉 お祝い・歓送迎会</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="editorMemoInput" class="block text-sm font-semibold text-slate-700 mb-1">
+                  メモ・お店候補・予算など（任意）
+                </label>
+                <textarea
+                  id="editorMemoInput"
+                  rows="3"
+                  placeholder="例：新宿・渋谷あたりで美味しいご飯を食べましょう！&#10;予算は4,000〜5,000円くらいを予定しています。"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm transition"
+                ></textarea>
+              </div>
+
+              <!-- Organizer ID & Event Edit Password Box -->
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+                    🔐 幹事ID・イベント編集パスワード設定
+                  </span>
+                  <span class="text-[11px] text-slate-500">最大30名参加可</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label for="editorOwnerIdInput" class="block text-xs font-semibold text-slate-600 mb-1">
+                      作成者ID（任意）
+                    </label>
+                    <input
+                      type="text"
+                      id="editorOwnerIdInput"
+                      maxlength="24"
+                      placeholder="例：tanaka_01"
+                      class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-orange-500 outline-none text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label for="editorEventPasswordInput" class="block text-xs font-semibold text-slate-600 mb-1">
+                      編集パスワード（任意）
+                    </label>
+                    <input
+                      type="password"
+                      id="editorEventPasswordInput"
+                      maxlength="24"
+                      placeholder="設定すると編集時に必要"
+                      class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-orange-500 outline-none text-xs bg-white"
+                    />
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-500 leading-relaxed">
+                  ※ 右上の「ID登録/ログイン」で自分のIDを登録しておくと自動入力されます。編集パスワードを設定すると、後からイベント内容を変更・削除する際に保護できます。
+                </p>
+              </div>
+            </div>
+
+            <!-- Right column: Interactive Calendar Picker & Candidate list -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md self-start">
+                  STEP 2. 候補日をタップして追加
+                </div>
+
+                <!-- Time Mode Selector: Only "自分で作れる時間帯" or "時間指定なし" -->
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                  <span class="text-slate-600 font-semibold">追加する時間帯:</span>
+                  <select id="defaultTimePreset" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold focus:outline-none focus:border-orange-500">
+                    <option value="custom">自分で作れる時間帯</option>
+                    <option value="none">時間指定なし</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Custom Time Input Bar (Shown when "自分で作れる時間帯" is selected) -->
+              <div id="customTimeInputWrapper" class="p-3 rounded-xl bg-orange-50/70 border border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label for="customTimeTextInput" class="text-xs font-semibold text-orange-900 shrink-0">
+                  ⏰ 自由に入力できる時間帯:
+                </label>
+                <div class="flex items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    id="customTimeTextInput"
+                    maxlength="30"
+                    value="19:00〜"
+                    placeholder="例：19:00〜21:00、18:30〜、ランチなど自由入力"
+                    class="w-full px-3 py-1.5 rounded-lg border border-orange-300 bg-white text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Mini Calendar Widget -->
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/60">
+                  <div class="flex items-center justify-between mb-3">
+                    <button type="button" id="calPrevMonthBtn" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition" title="前の月">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                      </svg>
+                    </button>
+                    <div id="calMonthLabel" class="text-sm font-bold text-slate-800"></div>
+                    <button type="button" id="calNextMonthBtn" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 transition" title="次の月">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500 mb-1">
+                    <span class="text-rose-500">日</span>
+                    <span>月</span>
+                    <span>火</span>
+                    <span>水</span>
+                    <span>木</span>
+                    <span>金</span>
+                    <span class="text-blue-600">土</span>
+                  </div>
+                  <div id="calendarDaysGrid" class="grid grid-cols-7 gap-1">
+                    <!-- Populated dynamically -->
+                  </div>
+                  <div class="mt-3 pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>日付クリックで右のリストに追加</span>
+                    <button type="button" id="addNextWeekendBtn" class="text-orange-600 hover:underline font-semibold">＋今週末を追加</button>
+                  </div>
+                </div>
+
+                <!-- Candidate Slots Textarea / List -->
+                <div class="flex flex-col">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label for="editorSlotsTextarea" class="text-xs font-semibold text-slate-700">
+                      候補日程リスト（1行に1候補・自由編集OK） <span class="text-rose-500">*</span>
+                    </label>
+                    <button type="button" id="clearSlotsBtn" class="text-xs text-slate-400 hover:text-rose-500 transition">クリア</button>
+                  </div>
+                  <textarea
+                    id="editorSlotsTextarea"
+                    rows="9"
+                    required
+                    placeholder="カレンダーの日付をクリックするか、直接入力してください&#10;例：&#10;11/6(金) 19:00〜&#10;11/7(土)"
+                    class="flex-1 w-full p-3 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm font-mono leading-relaxed transition"
+                  ></textarea>
+                  <p class="text-[11px] text-slate-500 mt-1.5">
+                    ※ 「自分で作れる時間帯」を変えて同じ日をもう一度押すと、別時間帯の行も追加できます。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <button type="button" id="cancelEditorBtnBottom" class="hidden px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+              キャンセル
+            </button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition">
+              イベントを保存して出欠表を開く
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 3: SAVED EVENTS LIST -->
+    <section id="viewEventsList" class="hidden space-y-6 animate-fade-in">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-200">
+          <div>
+            <h1 class="text-xl font-bold text-slate-900">保存されているイベント一覧</h1>
+            <p class="text-xs text-slate-500 mt-0.5">作成したスケジュール表や読み込んだイベントを切り替えられます</p>
+          </div>
+          <button id="listCreateNewBtn" type="button" class="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white transition">
+            ＋ 新しいイベントを作成
+          </button>
+        </div>
+
+        <div id="eventsListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Account ID Registration & Password Modal -->
+  <div id="authModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-5 animate-fade-in">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+            👤
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">ID登録・ログイン設定</h3>
+        </div>
+        <button id="closeAuthModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          ✕
+        </button>
+      </div>
+
+      <!-- Logged-in Status View -->
+      <div id="authLoggedInPanel" class="hidden space-y-4">
+        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+          <div class="text-xs font-semibold text-emerald-700">現在ログイン中のアカウント</div>
+          <div id="authCurrentUserDisplay" class="text-base font-bold text-slate-900"></div>
+          <div id="authCurrentIdDisplay" class="text-xs text-slate-600 font-mono"></div>
+        </div>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          ログイン中は、イベント作成時の「作成者ID」や出欠入力時の「お名前」に自動反映されます。
+        </p>
+        <div class="flex justify-end gap-2 pt-2">
+          <button id="logoutBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+            ログアウト
+          </button>
+          <button id="closeAuthLoggedInBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition">
+            閉じる
+          </button>
+        </div>
+      </div>
+
+      <!-- Register / Login Form View -->
+      <div id="authFormPanel" class="space-y-4">
+        <div class="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+          <button type="button" id="tabRegisterModeBtn" class="py-2 rounded-lg bg-white text-slate-900 shadow-sm transition">
+            新規ID登録
+          </button>
+          <button type="button" id="tabLoginModeBtn" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">
+            ログイン
+          </button>
+        </div>
+
+        <form id="authAccountForm" class="space-y-3.5">
+          <div>
+            <label for="authUserIdInput" class="block text-xs font-semibold text-slate-700 mb-1">
+              ユーザーID（半角英数字・記号） <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="authUserIdInput"
+              required
+              maxlength="24"
+              placeholder="例：tanaka_2026"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-orange-500 outline-none text-sm"
+            />
+          </div>
+
+          <div id="authDisplayNameWrapper">
+            <label for="authDisplayNameInput" class="block text-xs font-semibold text-slate-700 mb-1">
+              表示名（ニックネーム） <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="authDisplayNameInput"
+              maxlength="24"
+              placeholder="例：田中（幹事）"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-orange-500 outline-none text-sm"
+            />
+          </div>
+
+          <div>
+            <label for="authPasswordInput" class="block text-xs font-semibold text-slate-700 mb-1">
+              パスワード <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="password"
+              id="authPasswordInput"
+              required
+              maxlength="32"
+              placeholder="4文字以上のパスワード"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-orange-500 outline-none text-sm"
+            />
+          </div>
+
+          <div class="pt-2 flex justify-end gap-2">
+            <button type="button" id="cancelAuthModalBtn" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100">
+              キャンセル
+            </button>
+            <button type="submit" id="authSubmitBtn" class="px-5 py-2 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition">
+              IDを登録してログイン
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password Prompt Modal (For protected event or participant edit) -->
+  <div id="passwordVerifyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-fade-in">
+      <h3 id="passwordVerifyTitle" class="text-base font-bold text-slate-900">🔒 パスワードの確認</h3>
+      <p id="passwordVerifyMessage" class="text-xs text-slate-600 leading-relaxed"></p>
+      <input
+        type="password"
+        id="passwordVerifyInput"
+        placeholder="パスワードを入力してください"
+        class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-orange-500 outline-none text-sm"
+      />
+      <div class="flex justify-end gap-2 pt-1">
+        <button id="passwordVerifyCancelBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100">
+          キャンセル
+        </button>
+        <button id="passwordVerifyOkBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white">
+          確認して進む
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share / Export Modal -->
+  <div id="shareModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">メンバーに日程表をシェア</h3>
+        <button id="closeShareModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">LINE・Slack・メール貼り付け用テキスト</label>
+          <textarea id="shareSummaryText" readonly rows="6" class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-mono"></textarea>
+          <button id="copySummaryTextBtn" type="button" class="mt-2 w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm transition">
+            📋 募集メッセージ＆集計状況をコピー
+          </button>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">共有バックアップコード（別ブラウザ・別端末へ引き継ぎ用）</label>
+          <div class="flex gap-2">
+            <input id="shareCodeInput" type="text" readonly class="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-600" />
+            <button id="copyShareCodeBtn" type="button" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold shrink-0 transition">
+              コードをコピー
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="importModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">共有コードからイベントを読み込む</h3>
+        <button id="closeImportModalBtn" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          ✕
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">
+        友達から受け取った「共有バックアップコード」またはJSONデータを貼り付けると、同じイベント表をこの画面で開いて出欠を追加できます。
+      </p>
+      <textarea id="importCodeTextarea" rows="4" placeholder="ここに共有コードを貼り付けてください..." class="w-full p-3 rounded-xl border border-slate-300 text-xs font-mono focus:border-orange-500 outline-none"></textarea>
+      <div class="flex justify-end gap-2">
+        <button id="cancelImportModalBtn" type="button" class="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100">キャンセル</button>
+        <button id="confirmImportBtn" type="button" class="px-5 py-2 rounded-xl text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white">読み込む</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-fade-in">
+      <h3 id="confirmModalTitle" class="text-base font-bold text-slate-900">確認</h3>
+      <p id="confirmModalMessage" class="text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="confirmModalCancelBtn" type="button" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 transition">キャンセル</button>
+        <button id="confirmModalOkBtn" type="button" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = 'gohan_chousei_events_v2';
+      const ACTIVE_ID_KEY = 'gohan_chousei_active_id_v2';
+      const ACCOUNTS_KEY = 'gohan_chousei_accounts_v2';
+      const CURRENT_USER_KEY = 'gohan_chousei_current_user_v2';
+      const MAX_PARTICIPANTS = 30;
+      const WEEKDAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+      // State Management (No initial sample event; starts on New Event Creation screen)
+      let events = [];
+      let currentEventId = '';
+      let accounts = [];
+      let currentUser = null;
+      let authMode = 'register'; // 'register' | 'login'
+
+      const initialNow = new Date();
+      let calYear = initialNow.getFullYear();
+      let calMonth = initialNow.getMonth();
+      let draftAnswers = {};
+      let pendingConfirmCallback = null;
+      let pendingPasswordVerifyCallback = null;
+
+      // Safe UTF-8 Base64 encoding/decoding using TextEncoder/TextDecoder
+      function encodeEventToCode(obj) {
+        const jsonStr = JSON.stringify(obj);
+        const bytes = new TextEncoder().encode(jsonStr);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      function decodeEventFromCode(rawStr) {
+        const trimmed = rawStr.trim();
+        if (trimmed.startsWith('{')) {
+          return JSON.parse(trimmed);
+        }
+        const cleanedBase64 = trimmed.replace(/\s+/g, '');
+        const binary = atob(cleanedBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const jsonStr = new TextDecoder().decode(bytes);
+        return JSON.parse(jsonStr);
+      }
+
+      function sanitizeEventObject(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const title = String(raw.title || '').trim();
+        if (!title || !Array.isArray(raw.slots) || raw.slots.length === 0) return null;
+
+        const slots = raw.slots
+          .map((s, idx) => {
+            if (!s) return null;
+            const label = String(s.label || '').trim();
+            if (!label) return null;
+            return {
+              id: String(s.id || ('s_' + Date.now() + '_' + idx)),
+              label
+            };
+          })
+          .filter(Boolean);
+
+        if (slots.length === 0) return null;
+
+        const participants = Array.isArray(raw.participants)
+          ? raw.participants
+              .slice(0, MAX_PARTICIPANTS)
+              .map((p, idx) => {
+                if (!p || typeof p !== 'object') return null;
+                const name = String(p.name || '').trim();
+                if (!name) return null;
+                const rawAns = p.answers && typeof p.answers === 'object' ? p.answers : {};
+                const cleanAns = {};
+                slots.forEach(sl => {
+                  const val = rawAns[sl.id];
+                  cleanAns[sl.id] = (val === 'ok' || val === 'maybe' || val === 'ng') ? val : 'maybe';
+                });
+                return {
+                  id: String(p.id || ('p_' + Date.now() + '_' + idx)),
+                  name,
+                  comment: String(p.comment || '').trim(),
+                  pin: String(p.pin || ''),
+                  answers: cleanAns
+                };
+              })
+              .filter(Boolean)
+          : [];
+
+        return {
+          id: String(raw.id || ('evt_' + Date.now())),
+          title,
+          category: String(raw.category || '🍽️ 食事・ディナー'),
+          memo: String(raw.memo || ''),
+          ownerId: String(raw.ownerId || '').trim(),
+          editPassword: String(raw.editPassword || ''),
+          updatedAt: String(raw.updatedAt || formatNowTimestamp()),
+          slots,
+          participants
+        };
+      }
+
+      function loadState() {
+        try {
+          const rawEvents = localStorage.getItem(STORAGE_KEY);
+          if (rawEvents) {
+            const parsed = JSON.parse(rawEvents);
+            if (Array.isArray(parsed)) {
+              events = parsed.map(sanitizeEventObject).filter(Boolean);
+            }
+          }
+        } catch (e) {
+          events = [];
+        }
+
+        try {
+          const savedActive = localStorage.getItem(ACTIVE_ID_KEY);
+          if (savedActive && events.some(ev => ev.id === savedActive)) {
+            currentEventId = savedActive;
+          } else if (events.length > 0) {
+            currentEventId = events[0].id;
+          } else {
+            currentEventId = '';
+          }
+        } catch (e) {
+          currentEventId = events.length > 0 ? events[0].id : '';
+        }
+
+        try {
+          const rawAccounts = localStorage.getItem(ACCOUNTS_KEY);
+          if (rawAccounts) {
+            const parsedAcc = JSON.parse(rawAccounts);
+            if (Array.isArray(parsedAcc)) accounts = parsedAcc;
+          }
+          const rawUser = localStorage.getItem(CURRENT_USER_KEY);
+          if (rawUser) {
+            const parsedUser = JSON.parse(rawUser);
+            if (parsedUser && parsedUser.userId) currentUser = parsedUser;
+          }
+        } catch (e) {
+          accounts = [];
+          currentUser = null;
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+          localStorage.setItem(ACTIVE_ID_KEY, currentEventId);
+        } catch (e) {
+          // Ignore storage errors
+        }
+        updateHeaderUI();
+      }
+
+      function saveAuthState() {
+        try {
+          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+          if (currentUser) {
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+          } else {
+            localStorage.removeItem(CURRENT_USER_KEY);
+          }
+        } catch (e) {
+          // Ignore storage errors
+        }
+        updateHeaderUI();
+      }
+
+      function getCurrentEvent() {
+        return events.find(e => e.id === currentEventId) || null;
+      }
+
+      function formatNowTimestamp() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + min;
+      }
+
+      function showToast(message, type) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        const bgClass = type === 'error' ? 'bg-rose-600' : 'bg-slate-900';
+        toast.className = bgClass + ' text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in';
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 0.25s ease';
+          setTimeout(() => toast.remove(), 250);
+        }, 2600);
+      }
+
+      function openConfirmModal(title, message, onConfirm) {
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+        pendingConfirmCallback = onConfirm;
+        const modal = document.getElementById('confirmModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeConfirmModal() {
+        pendingConfirmCallback = null;
+        const modal = document.getElementById('confirmModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function openPasswordVerifyModal(title, message, expectedPassword, onSuccess) {
+        document.getElementById('passwordVerifyTitle').textContent = title;
+        document.getElementById('passwordVerifyMessage').textContent = message;
+        const input = document.getElementById('passwordVerifyInput');
+        input.value = '';
+        pendingPasswordVerifyCallback = () => {
+          if (input.value === expectedPassword) {
+            closePasswordVerifyModal();
+            onSuccess();
+          } else {
+            showToast('パスワードが一致しません', 'error');
+          }
+        };
+        const modal = document.getElementById('passwordVerifyModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => input.focus(), 50);
+      }
+
+      function closePasswordVerifyModal() {
+        pendingPasswordVerifyCallback = null;
+        const modal = document.getElementById('passwordVerifyModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function copyTextToClipboard(text, successMsg) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(successMsg);
+          }).catch(() => {
+            fallbackCopy(text, successMsg);
+          });
+        } else {
+          fallbackCopy(text, successMsg);
+        }
+      }
+
+      function fallbackCopy(text, successMsg) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast(successMsg);
+        } catch (e) {
+          showToast('コピーに失敗しました', 'error');
+        }
+        document.body.removeChild(ta);
+      }
+
+      function updateHeaderUI() {
+        const badge = document.getElementById('eventCountBadge');
+        if (badge) badge.textContent = String(events.length);
+
+        const authLabel = document.getElementById('navAuthLabel');
+        if (currentUser) {
+          authLabel.textContent = currentUser.displayName + ' (@' + currentUser.userId + ')';
+        } else {
+          authLabel.textContent = 'ID登録/ログイン';
+        }
+      }
+
+      // View Switching
+      function switchView(viewName, options) {
+        const opts = options || {};
+        const vDetail = document.getElementById('viewEventDetail');
+        const vEditor = document.getElementById('viewEventEditor');
+        const vList = document.getElementById('viewEventsList');
+
+        vDetail.classList.add('hidden');
+        vEditor.classList.add('hidden');
+        vList.classList.add('hidden');
+
+        if (viewName === 'detail') {
+          if (!getCurrentEvent()) {
+            openCreateEventEditor();
+            return;
+          }
+          vDetail.classList.remove('hidden');
+          renderEventDetail({ preserveForm: Boolean(opts.preserveForm) });
+        } else if (viewName === 'editor') {
+          vEditor.classList.remove('hidden');
+          // Show or hide cancel buttons depending on whether an event already exists
+          const hasEvents = events.length > 0;
+          document.getElementById('cancelEditorBtn').classList.toggle('hidden', !hasEvents);
+          document.getElementById('cancelEditorBtnBottom').classList.toggle('hidden', !hasEvents);
+          updateCustomTimeVisibility();
+          renderMiniCalendar();
+        } else if (viewName === 'list') {
+          vList.classList.remove('hidden');
+          renderEventsList();
+        }
+        if (!opts.skipScroll) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+
+      // Compute slot statistics for ranking best dates
+      function computeSlotStats(ev) {
+        const stats = ev.slots.map(slot => {
+          let ok = 0;
+          let maybe = 0;
+          let ng = 0;
+          ev.participants.forEach(p => {
+            const ans = p.answers[slot.id] || 'maybe';
+            if (ans === 'ok') ok++;
+            else if (ans === 'maybe') maybe++;
+            else if (ans === 'ng') ng++;
+          });
+          const score = ok * 100 + maybe * 25 - ng * 10;
+          return { slot, ok, maybe, ng, score };
+        });
+
+        let maxScore = -999999;
+        stats.forEach(st => {
+          if (st.score > maxScore) maxScore = st.score;
+        });
+
+        stats.forEach(st => {
+          st.isBest = ev.participants.length > 0 && st.score === maxScore && st.ok > 0;
+        });
+
+        return stats;
+      }
+
+      // Render Event Detail & Matrix
+      function renderEventDetail(options) {
+        const opts = options || {};
+        const ev = getCurrentEvent();
+        if (!ev) return;
+
+        document.getElementById('detailCategoryBadge').textContent = ev.category || '🍽️ 食事・ディナー';
+        document.getElementById('detailParticipantCount').textContent =
+          '👥 回答 ' + ev.participants.length + ' / ' + MAX_PARTICIPANTS + '名';
+        document.getElementById('detailUpdatedTime').textContent = ev.updatedAt ? ('最終更新: ' + ev.updatedAt) : '';
+        document.getElementById('detailEventTitle').textContent = ev.title;
+        document.getElementById('detailEventMemo').textContent = ev.memo || 'メモなし';
+
+        const ownerBadge = document.getElementById('detailOwnerBadge');
+        if (ev.ownerId) {
+          ownerBadge.textContent = '👤 作成者ID: ' + ev.ownerId;
+          ownerBadge.classList.remove('hidden');
+          ownerBadge.classList.add('inline-flex');
+        } else {
+          ownerBadge.classList.add('hidden');
+          ownerBadge.classList.remove('inline-flex');
+        }
+
+        const pwBadge = document.getElementById('detailPasswordBadge');
+        if (ev.editPassword) {
+          pwBadge.classList.remove('hidden');
+          pwBadge.classList.add('inline-flex');
+        } else {
+          pwBadge.classList.add('hidden');
+          pwBadge.classList.remove('inline-flex');
+        }
+
+        const stats = computeSlotStats(ev);
+        const bestSlots = stats.filter(s => s.isBest);
+
+        const bestBannerText = document.getElementById('bestDateText');
+        if (ev.participants.length === 0) {
+          bestBannerText.textContent = 'まだ出欠回答がありません。下のフォームから最初の回答を入力しましょう！';
+        } else if (bestSlots.length > 0) {
+          const labels = bestSlots.map(b => b.slot.label + '（◯ ' + b.ok + '名 / △ ' + b.maybe + '名）').join(' ・ ');
+          bestBannerText.textContent = labels;
+        } else {
+          bestBannerText.textContent = '参加できる候補日がまだ見つかっていません（すべて△または✕）';
+        }
+
+        // Matrix Header
+        const headerRow = document.getElementById('matrixHeaderRow');
+        headerRow.innerHTML = '';
+
+        const thDate = document.createElement('th');
+        thDate.className = 'py-3.5 px-4 text-left font-bold text-slate-700 w-48 sticky left-0 bg-slate-50 z-10 border-r border-slate-200';
+        thDate.textContent = '候補日程';
+        headerRow.appendChild(thDate);
+
+        const thCounts = document.createElement('th');
+        thCounts.className = 'py-3.5 px-3 text-center font-bold text-slate-700 w-36 border-r border-slate-200';
+        thCounts.innerHTML = '<span class="text-emerald-600">◯</span> / <span class="text-amber-500">△</span> / <span class="text-rose-500">✕</span>';
+        headerRow.appendChild(thCounts);
+
+        ev.participants.forEach(p => {
+          const th = document.createElement('th');
+          th.className = 'py-3 px-3 text-center min-w-[100px] border-r border-slate-100';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'inline-flex flex-col items-center group text-slate-800 hover:text-orange-600 transition focus:outline-none';
+          btn.title = 'クリックして ' + p.name + ' さんの回答を編集';
+          const lockIcon = p.pin ? '🔒 ' : '';
+          btn.innerHTML =
+            '<span class="font-bold text-sm underline decoration-slate-300 group-hover:decoration-orange-500 underline-offset-4">' +
+            lockIcon + escapeHtml(p.name) +
+            '</span>' +
+            '<span class="text-[10px] text-slate-400 group-hover:text-orange-500 mt-0.5">✎ 編集</span>';
+          btn.addEventListener('click', () => requestEditParticipant(p.id));
+          th.appendChild(btn);
+          headerRow.appendChild(th);
+        });
+
+        // Matrix Body Rows
+        const bodyRows = document.getElementById('matrixBodyRows');
+        bodyRows.innerHTML = '';
+        const filterBestOnly = document.getElementById('filterBestOnlyToggle').checked;
+
+        const visibleStats = filterBestOnly ? stats.filter(s => s.isBest) : stats;
+
+        if (visibleStats.length === 0) {
+          const trEmpty = document.createElement('tr');
+          const tdEmpty = document.createElement('td');
+          tdEmpty.colSpan = 2 + ev.participants.length;
+          tdEmpty.className = 'py-8 text-center text-slate-400 text-sm';
+          tdEmpty.textContent = '該当する候補日がありません（「有力候補日のみ表示」のチェックを外してください）';
+          trEmpty.appendChild(tdEmpty);
+          bodyRows.appendChild(trEmpty);
+        } else {
+          visibleStats.forEach(st => {
+            const tr = document.createElement('tr');
+            tr.className = st.isBest
+              ? 'bg-emerald-50/70 hover:bg-emerald-50 transition'
+              : 'hover:bg-slate-50/80 transition';
+
+            const tdLabel = document.createElement('td');
+            tdLabel.className = 'py-3.5 px-4 font-semibold text-slate-800 sticky left-0 z-10 border-r border-slate-200 ' +
+              (st.isBest ? 'bg-emerald-50' : 'bg-white');
+            tdLabel.innerHTML =
+              '<div class="flex items-center gap-2">' +
+              (st.isBest ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-600 text-white shrink-0">ベスト</span>' : '') +
+              '<span>' + escapeHtml(st.slot.label) + '</span>' +
+              '</div>';
+            tr.appendChild(tdLabel);
+
+            const tdTally = document.createElement('td');
+            tdTally.className = 'py-3.5 px-3 text-center border-r border-slate-200';
+            tdTally.innerHTML =
+              '<div class="inline-flex items-center gap-2 text-xs font-bold">' +
+              '<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">' + st.ok + '</span>' +
+              '<span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">' + st.maybe + '</span>' +
+              '<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">' + st.ng + '</span>' +
+              '</div>';
+            tr.appendChild(tdTally);
+
+            ev.participants.forEach(p => {
+              const tdAns = document.createElement('td');
+              tdAns.className = 'py-3 px-3 text-center border-r border-slate-100';
+              const ans = p.answers[st.slot.id] || 'maybe';
+              if (ans === 'ok') {
+                tdAns.innerHTML = '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 font-bold text-base">◯</span>';
+              } else if (ans === 'maybe') {
+                tdAns.innerHTML = '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold text-base">△</span>';
+              } else {
+                tdAns.innerHTML = '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-100 text-rose-600 font-bold text-base">✕</span>';
+              }
+              tr.appendChild(tdAns);
+            });
+
+            bodyRows.appendChild(tr);
+          });
+        }
+
+        // Comment Footer Row
+        const tfoot = document.getElementById('matrixCommentFoot');
+        tfoot.innerHTML = '';
+        const trComment = document.createElement('tr');
+
+        const tdCommentLabel = document.createElement('td');
+        tdCommentLabel.className = 'py-3 px-4 font-semibold text-slate-600 sticky left-0 bg-slate-50 z-10 border-r border-slate-200';
+        tdCommentLabel.textContent = '💬 一言コメント';
+        trComment.appendChild(tdCommentLabel);
+
+        const tdCommentEmpty = document.createElement('td');
+        tdCommentEmpty.className = 'py-3 px-3 text-center text-slate-400 border-r border-slate-200';
+        tdCommentEmpty.textContent = '—';
+        trComment.appendChild(tdCommentEmpty);
+
+        ev.participants.forEach(p => {
+          const tdC = document.createElement('td');
+          tdC.className = 'py-3 px-3 text-slate-600 align-top border-r border-slate-100 max-w-[160px] break-words';
+          tdC.textContent = p.comment ? p.comment : '—';
+          trComment.appendChild(tdC);
+        });
+        tfoot.appendChild(trComment);
+
+        if (!opts.preserveForm) {
+          syncParticipantFormWithEvent();
+        } else {
+          renderParticipantDateSelectors();
+        }
+        updateCapacityUI();
+      }
+
+      function updateCapacityUI() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        const editingId = document.getElementById('editingParticipantId').value;
+        const remaining = Math.max(0, MAX_PARTICIPANTS - ev.participants.length);
+        const remBadge = document.getElementById('capacityRemainingBadge');
+        const fullBanner = document.getElementById('capacityFullBanner');
+        const submitBtn = document.getElementById('submitParticipantBtn');
+
+        remBadge.textContent = '残り ' + remaining + ' / ' + MAX_PARTICIPANTS + '名';
+        if (remaining === 0 && !editingId) {
+          remBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700';
+          fullBanner.classList.remove('hidden');
+          submitBtn.disabled = true;
+        } else {
+          remBadge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+          fullBanner.classList.add('hidden');
+          submitBtn.disabled = false;
+        }
+      }
+
+      function renderParticipantDateSelectors() {
+        const ev = getCurrentEvent();
+        const container = document.getElementById('participantDatesList');
+        container.innerHTML = '';
+        if (!ev) return;
+
+        ev.slots.forEach(slot => {
+          const currentVal = draftAnswers[slot.id] || 'ok';
+          const row = document.createElement('div');
+          row.className = 'p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white hover:bg-slate-50/70 transition';
+
+          const labelEl = document.createElement('div');
+          labelEl.className = 'font-semibold text-sm text-slate-800';
+          labelEl.textContent = slot.label;
+
+          const btnGroup = document.createElement('div');
+          btnGroup.className = 'grid grid-cols-3 gap-2 sm:w-72 shrink-0';
+
+          const options = [
+            { key: 'ok', text: '◯ 行ける', activeCls: 'bg-emerald-600 text-white border-emerald-600 shadow-sm', idleCls: 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50' },
+            { key: 'maybe', text: '△ 微妙', activeCls: 'bg-amber-500 text-white border-amber-500 shadow-sm', idleCls: 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50' },
+            { key: 'ng', text: '✕ 不可', activeCls: 'bg-rose-500 text-white border-rose-500 shadow-sm', idleCls: 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50' }
+          ];
+
+          options.forEach(opt => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            const isSelected = currentVal === opt.key;
+            b.className = 'py-2 px-2.5 rounded-xl border text-xs font-bold transition ' + (isSelected ? opt.activeCls : opt.idleCls);
+            b.textContent = opt.text;
+            b.addEventListener('click', () => {
+              draftAnswers[slot.id] = opt.key;
+              renderParticipantDateSelectors();
+            });
+            btnGroup.appendChild(b);
+          });
+
+          row.appendChild(labelEl);
+          row.appendChild(btnGroup);
+          container.appendChild(row);
+        });
+      }
+
+      function syncParticipantFormWithEvent() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        const editingId = document.getElementById('editingParticipantId').value;
+        if (editingId) {
+          const found = ev.participants.find(p => p.id === editingId);
+          if (found) {
+            ev.slots.forEach(s => {
+              if (!draftAnswers[s.id]) {
+                draftAnswers[s.id] = found.answers[s.id] || 'maybe';
+              }
+            });
+            renderParticipantDateSelectors();
+            updateCapacityUI();
+            return;
+          }
+        }
+        const nextDraft = {};
+        if (ev.slots) {
+          ev.slots.forEach(s => {
+            nextDraft[s.id] = draftAnswers[s.id] || 'ok';
+          });
+        }
+        draftAnswers = nextDraft;
+        renderParticipantDateSelectors();
+        updateCapacityUI();
+      }
+
+      function resetParticipantForm() {
+        const ev = getCurrentEvent();
+        document.getElementById('editingParticipantId').value = '';
+        document.getElementById('participantNameInput').value = currentUser ? currentUser.displayName : '';
+        document.getElementById('participantCommentInput').value = '';
+        document.getElementById('participantPinInput').value = '';
+        document.getElementById('answerFormHeading').textContent = '出欠を入力する';
+        document.getElementById('answerFormSubtext').textContent = 'あなたの名前と各日程の「◯・△・✕」を選択して登録してください（最大30名まで）';
+        document.getElementById('submitParticipantBtn').innerHTML = '<span>出欠を登録する</span>';
+        document.getElementById('cancelEditParticipantBtn').classList.add('hidden');
+        document.getElementById('deleteParticipantBtn').classList.add('hidden');
+
+        draftAnswers = {};
+        if (ev && ev.slots) {
+          ev.slots.forEach(s => {
+            draftAnswers[s.id] = 'ok';
+          });
+        }
+        renderParticipantDateSelectors();
+        updateCapacityUI();
+      }
+
+      function requestEditParticipant(participantId) {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        const p = ev.participants.find(item => item.id === participantId);
+        if (!p) return;
+
+        if (p.pin) {
+          openPasswordVerifyModal(
+            '🔒 回答の編集パスワード確認',
+            p.name + ' さんの回答には編集用パスワードが設定されています。パスワードを入力してください。',
+            p.pin,
+            () => startEditingParticipant(participantId)
+          );
+        } else {
+          startEditingParticipant(participantId);
+        }
+      }
+
+      function startEditingParticipant(participantId) {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        const p = ev.participants.find(item => item.id === participantId);
+        if (!p) return;
+
+        document.getElementById('editingParticipantId').value = p.id;
+        document.getElementById('participantNameInput').value = p.name;
+        document.getElementById('participantCommentInput').value = p.comment || '';
+        document.getElementById('participantPinInput').value = p.pin || '';
+        document.getElementById('answerFormHeading').textContent = p.name + ' さんの出欠を編集';
+        document.getElementById('answerFormSubtext').textContent = '内容を修正して「変更を保存する」を押してください';
+        document.getElementById('submitParticipantBtn').innerHTML = '<span>変更を保存する</span>';
+        document.getElementById('cancelEditParticipantBtn').classList.remove('hidden');
+        document.getElementById('deleteParticipantBtn').classList.remove('hidden');
+
+        draftAnswers = {};
+        ev.slots.forEach(s => {
+          draftAnswers[s.id] = p.answers[s.id] || 'maybe';
+        });
+        renderParticipantDateSelectors();
+        updateCapacityUI();
+
+        document.getElementById('answerFormSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Time Preset Helper ("自分で作れる時間帯" vs "時間指定なし")
+      function getSelectedTimeSuffix() {
+        const mode = document.getElementById('defaultTimePreset').value;
+        if (mode === 'none') {
+          return '';
+        }
+        const customText = document.getElementById('customTimeTextInput').value.trim();
+        return customText ? (' ' + customText) : '';
+      }
+
+      function updateCustomTimeVisibility() {
+        const mode = document.getElementById('defaultTimePreset').value;
+        const wrapper = document.getElementById('customTimeInputWrapper');
+        if (mode === 'custom') {
+          wrapper.classList.remove('hidden');
+          wrapper.classList.add('flex');
+        } else {
+          wrapper.classList.add('hidden');
+          wrapper.classList.remove('flex');
+        }
+      }
+
+      function isDatePrefixInLines(datePrefix, lines) {
+        return lines.some(line => line === datePrefix || line.startsWith(datePrefix + ' ') || line.startsWith(datePrefix + '　'));
+      }
+
+      function renderMiniCalendar() {
+        const label = document.getElementById('calMonthLabel');
+        label.textContent = calYear + '年 ' + (calMonth + 1) + '月';
+
+        const grid = document.getElementById('calendarDaysGrid');
+        grid.innerHTML = '';
+
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+          const empty = document.createElement('div');
+          grid.appendChild(empty);
+        }
+
+        const rawText = document.getElementById('editorSlotsTextarea').value;
+        const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateObj = new Date(calYear, calMonth, d);
+          const dow = dateObj.getDay();
+          const datePrefix = (calMonth + 1) + '/' + d + '(' + WEEKDAYS_JP[dow] + ')';
+          const isAlreadyAdded = isDatePrefixInLines(datePrefix, lines);
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          let colorCls = 'text-slate-700 bg-white hover:bg-orange-50 border-slate-200';
+          if (dow === 0) colorCls = 'text-rose-600 bg-white hover:bg-orange-50 border-slate-200';
+          if (dow === 6) colorCls = 'text-blue-600 bg-white hover:bg-orange-50 border-slate-200';
+          if (isAlreadyAdded) {
+            colorCls = 'bg-orange-600 text-white border-orange-600 font-bold shadow-sm';
+          }
+
+          btn.className = 'calendar-cell h-9 rounded-lg border text-xs font-medium flex items-center justify-center ' + colorCls;
+          btn.textContent = String(d);
+          btn.addEventListener('click', () => {
+            toggleDateSlotInTextarea(datePrefix);
+          });
+          grid.appendChild(btn);
+        }
+      }
+
+      function toggleDateSlotInTextarea(datePrefix) {
+        const suffix = getSelectedTimeSuffix();
+        const targetLine = datePrefix + suffix;
+        const ta = document.getElementById('editorSlotsTextarea');
+        const current = ta.value.trim();
+        const lines = current ? current.split('\n').map(l => l.trim()).filter(Boolean) : [];
+
+        if (lines.includes(targetLine)) {
+          ta.value = lines.filter(l => l !== targetLine).join('\n');
+          showToast(targetLine + ' を候補から外しました');
+        } else {
+          lines.push(targetLine);
+          ta.value = lines.join('\n');
+          showToast(targetLine + ' を候補に追加しました');
+        }
+        renderMiniCalendar();
+      }
+
+      function addUpcomingWeekendToTextarea() {
+        const timeSuffix = getSelectedTimeSuffix();
+
+        const now = new Date();
+        let startDay = 1;
+        if (calYear === now.getFullYear() && calMonth === now.getMonth()) {
+          startDay = now.getDate();
+        }
+
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        let fridayDate = null;
+        for (let d = startDay; d <= daysInMonth; d++) {
+          const testDate = new Date(calYear, calMonth, d);
+          if (testDate.getDay() === 5) {
+            fridayDate = testDate;
+            break;
+          }
+        }
+        if (!fridayDate) {
+          for (let d = 1; d <= daysInMonth; d++) {
+            const testDate = new Date(calYear, calMonth, d);
+            if (testDate.getDay() === 5) {
+              fridayDate = testDate;
+              break;
+            }
+          }
+        }
+
+        if (!fridayDate) return;
+
+        const weekendLabels = [];
+        for (let offset = 0; offset < 3; offset++) {
+          const dt = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + offset);
+          const m = dt.getMonth() + 1;
+          const dayNum = dt.getDate();
+          const w = WEEKDAYS_JP[dt.getDay()];
+          weekendLabels.push(m + '/' + dayNum + '(' + w + ')' + timeSuffix);
+        }
+
+        const ta = document.getElementById('editorSlotsTextarea');
+        const existing = ta.value.trim() ? ta.value.trim().split('\n').map(l => l.trim()).filter(Boolean) : [];
+        let addedCount = 0;
+        weekendLabels.forEach(lbl => {
+          if (!existing.includes(lbl)) {
+            existing.push(lbl);
+            addedCount++;
+          }
+        });
+        ta.value = existing.join('\n');
+        renderMiniCalendar();
+        if (addedCount > 0) {
+          showToast('週末（金・土・日）の候補日を ' + addedCount + '件 追加しました');
+        } else {
+          showToast('週末の候補日はすでにリストに入っています');
+        }
+      }
+
+      function openCreateEventEditor() {
+        document.getElementById('editorEventId').value = '';
+        document.getElementById('editorHeading').textContent = '新しい食事・イベント日程をつくる';
+        document.getElementById('editorTitleInput').value = '';
+        document.getElementById('editorCategorySelect').value = '🍽️ 食事・ディナー';
+        document.getElementById('editorMemoInput').value = '';
+        document.getElementById('editorOwnerIdInput').value = currentUser ? currentUser.userId : '';
+        document.getElementById('editorEventPasswordInput').value = '';
+        document.getElementById('editorSlotsTextarea').value = '';
+        switchView('editor');
+      }
+
+      function requestEditCurrentEvent() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        if (ev.editPassword) {
+          openPasswordVerifyModal(
+            '🔒 イベント編集パスワードの確認',
+            '「' + ev.title + '」を編集するには、作成時に設定した編集パスワードを入力してください。',
+            ev.editPassword,
+            () => openEditCurrentEventEditor()
+          );
+        } else {
+          openEditCurrentEventEditor();
+        }
+      }
+
+      function openEditCurrentEventEditor() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+        document.getElementById('editorEventId').value = ev.id;
+        document.getElementById('editorHeading').textContent = 'イベント内容・候補日の編集';
+        document.getElementById('editorTitleInput').value = ev.title;
+        document.getElementById('editorCategorySelect').value = ev.category || '🍽️ 食事・ディナー';
+        document.getElementById('editorMemoInput').value = ev.memo || '';
+        document.getElementById('editorOwnerIdInput').value = ev.ownerId || '';
+        document.getElementById('editorEventPasswordInput').value = ev.editPassword || '';
+        document.getElementById('editorSlotsTextarea').value = ev.slots.map(s => s.label).join('\n');
+        switchView('editor');
+      }
+
+      // Render Saved Events List
+      function renderEventsList() {
+        const container = document.getElementById('eventsListContainer');
+        container.innerHTML = '';
+
+        if (events.length === 0) {
+          const emptyBox = document.createElement('div');
+          emptyBox.className = 'col-span-full py-12 text-center space-y-3';
+          emptyBox.innerHTML =
+            '<div class="text-slate-400 text-sm">まだ保存されているイベントがありません。</div>' +
+            '<button type="button" id="emptyCreateBtn" class="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold transition">＋ 最初のイベントを作成する</button>';
+          container.appendChild(emptyBox);
+          const btn = document.getElementById('emptyCreateBtn');
+          if (btn) btn.addEventListener('click', openCreateEventEditor);
+          return;
+        }
+
+        events.forEach(ev => {
+          const isCurrent = ev.id === currentEventId;
+          const card = document.createElement('div');
+          card.className = 'p-5 rounded-2xl border transition flex flex-col justify-between gap-4 ' +
+            (isCurrent ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-200' : 'border-slate-200 bg-white hover:border-slate-300');
+
+          const top = document.createElement('div');
+          top.className = 'space-y-2';
+          const lockLabel = ev.editPassword ? '<span class="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">🔒 保護</span>' : '';
+          const ownerLabel = ev.ownerId ? '<span class="text-xs text-slate-500">ID: ' + escapeHtml(ev.ownerId) + '</span>' : '';
+          top.innerHTML =
+            '<div class="flex flex-wrap items-center justify-between gap-2">' +
+            '<div class="flex items-center gap-1.5">' +
+            '<span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">' + escapeHtml(ev.category || '🍽️ 食事') + '</span>' +
+            lockLabel +
+            ownerLabel +
+            '</div>' +
+            (isCurrent ? '<span class="text-xs font-bold text-orange-600">● 選択中</span>' : '') +
+            '</div>' +
+            '<h3 class="text-lg font-bold text-slate-900">' + escapeHtml(ev.title) + '</h3>' +
+            '<p class="text-xs text-slate-500 line-clamp-2">' + escapeHtml(ev.memo || 'メモなし') + '</p>';
+
+          const bottom = document.createElement('div');
+          bottom.className = 'pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2 text-xs text-slate-600';
+          bottom.innerHTML =
+            '<span>候補 ' + ev.slots.length + '件 ・ 回答 ' + ev.participants.length + ' / ' + MAX_PARTICIPANTS + '名</span>';
+
+          const actions = document.createElement('div');
+          actions.className = 'flex items-center gap-2';
+
+          const openBtn = document.createElement('button');
+          openBtn.type = 'button';
+          openBtn.className = 'px-3.5 py-1.5 rounded-lg font-semibold bg-slate-900 hover:bg-slate-800 text-white transition';
+          openBtn.textContent = 'この表を開く';
+          openBtn.addEventListener('click', () => {
+            currentEventId = ev.id;
+            document.getElementById('filterBestOnlyToggle').checked = false;
+            saveState();
+            resetParticipantForm();
+            switchView('detail');
+          });
+          actions.appendChild(openBtn);
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'px-2.5 py-1.5 rounded-lg font-medium text-rose-600 hover:bg-rose-50 transition';
+          delBtn.textContent = '削除';
+          delBtn.addEventListener('click', () => {
+            const performDelete = () => {
+              openConfirmModal(
+                'イベントの削除',
+                '「' + ev.title + '」を削除してもよろしいですか？この操作は元に戻せません。',
+                () => {
+                  events = events.filter(item => item.id !== ev.id);
+                  if (currentEventId === ev.id) {
+                    currentEventId = events.length > 0 ? events[0].id : '';
+                  }
+                  saveState();
+                  renderEventsList();
+                  showToast('イベントを削除しました');
+                }
+              );
+            };
+            if (ev.editPassword) {
+              openPasswordVerifyModal(
+                '🔒 削除パスワードの確認',
+                '「' + ev.title + '」を削除するには編集パスワードを入力してください。',
+                ev.editPassword,
+                performDelete
+              );
+            } else {
+              performDelete();
+            }
+          });
+          actions.appendChild(delBtn);
+
+          bottom.appendChild(actions);
+          card.appendChild(top);
+          card.appendChild(bottom);
+          container.appendChild(card);
+        });
+      }
+
+      // Account Auth Modal Logic
+      function openAuthModal() {
+        const modal = document.getElementById('authModal');
+        const loggedInPanel = document.getElementById('authLoggedInPanel');
+        const formPanel = document.getElementById('authFormPanel');
+
+        if (currentUser) {
+          loggedInPanel.classList.remove('hidden');
+          formPanel.classList.add('hidden');
+          document.getElementById('authCurrentUserDisplay').textContent = currentUser.displayName;
+          document.getElementById('authCurrentIdDisplay').textContent = 'ID: ' + currentUser.userId;
+        } else {
+          loggedInPanel.classList.add('hidden');
+          formPanel.classList.remove('hidden');
+          setAuthTabMode('register');
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeAuthModal() {
+        const modal = document.getElementById('authModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function setAuthTabMode(mode) {
+        authMode = mode;
+        const regBtn = document.getElementById('tabRegisterModeBtn');
+        const logBtn = document.getElementById('tabLoginModeBtn');
+        const nameWrapper = document.getElementById('authDisplayNameWrapper');
+        const submitBtn = document.getElementById('authSubmitBtn');
+
+        if (mode === 'register') {
+          regBtn.className = 'py-2 rounded-lg bg-white text-slate-900 shadow-sm transition';
+          logBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
+          nameWrapper.classList.remove('hidden');
+          submitBtn.textContent = 'IDを登録してログイン';
+        } else {
+          logBtn.className = 'py-2 rounded-lg bg-white text-slate-900 shadow-sm transition';
+          regBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
+          nameWrapper.classList.add('hidden');
+          submitBtn.textContent = 'ログインする';
+        }
+      }
+
+      // Utility HTML escaper
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // Export CSV
+      function exportCurrentEventCsv() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+
+        const headers = ['候補日程', '◯(行ける)', '△(微妙)', '✕(不可)'].concat(ev.participants.map(p => p.name));
+        const stats = computeSlotStats(ev);
+
+        const rows = [headers];
+        stats.forEach(st => {
+          const row = [
+            st.slot.label,
+            String(st.ok),
+            String(st.maybe),
+            String(st.ng)
+          ];
+          ev.participants.forEach(p => {
+            const ans = p.answers[st.slot.id] || 'maybe';
+            row.push(ans === 'ok' ? '◯' : ans === 'maybe' ? '△' : '✕');
+          });
+          rows.push(row);
+        });
+
+        const commentRow = ['コメント', '', '', ''].concat(ev.participants.map(p => p.comment || ''));
+        rows.push(commentRow);
+
+        const csvContent = '\uFEFF' + rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const safeFilename = String(ev.title || 'schedule').replace(/[\\/:*?"<>|]/g, '_');
+        link.download = safeFilename + '_出欠表.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('CSVファイルを出力しました');
+      }
+
+      // Share Modal Preparation
+      function openShareModal() {
+        const ev = getCurrentEvent();
+        if (!ev) return;
+
+        const stats = computeSlotStats(ev);
+        const best = stats.filter(s => s.isBest);
+
+        const lines = [];
+        lines.push('【日程調整】' + ev.title);
+        if (ev.memo) lines.push(ev.memo);
+        lines.push('');
+        lines.push('▼ 候補日程（現在の回答: ' + ev.participants.length + ' / ' + MAX_PARTICIPANTS + '名）');
+        stats.forEach(st => {
+          const crown = st.isBest ? '👑 ' : '・';
+          lines.push(crown + st.slot.label + '  [◯:' + st.ok + ' / △:' + st.maybe + ' / ✕:' + st.ng + ']');
+        });
+        if (best.length > 0) {
+          lines.push('');
+          lines.push('★有力候補: ' + best.map(b => b.slot.label).join('、'));
+        }
+
+        document.getElementById('shareSummaryText').value = lines.join('\n');
+        document.getElementById('shareCodeInput').value = encodeEventToCode(ev);
+
+        const modal = document.getElementById('shareModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeShareModal() {
+        const modal = document.getElementById('shareModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function closeImportModal() {
+        const modal = document.getElementById('importModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      // Event Listeners Registration
+      function bindEvents() {
+        document.getElementById('brandLogoBtn').addEventListener('click', () => {
+          if (getCurrentEvent()) {
+            switchView('detail');
+          } else {
+            openCreateEventEditor();
+          }
+        });
+        document.getElementById('navEventsBtn').addEventListener('click', () => switchView('list'));
+        document.getElementById('navCreateBtn').addEventListener('click', openCreateEventEditor);
+        document.getElementById('listCreateNewBtn').addEventListener('click', openCreateEventEditor);
+        document.getElementById('editEventBtn').addEventListener('click', requestEditCurrentEvent);
+        document.getElementById('exportCsvBtn').addEventListener('click', exportCurrentEventCsv);
+
+        // Auth Modal Events
+        document.getElementById('navAuthBtn').addEventListener('click', openAuthModal);
+        document.getElementById('closeAuthModalBtn').addEventListener('click', closeAuthModal);
+        document.getElementById('closeAuthLoggedInBtn').addEventListener('click', closeAuthModal);
+        document.getElementById('cancelAuthModalBtn').addEventListener('click', closeAuthModal);
+        document.getElementById('authModal').addEventListener('click', e => {
+          if (e.target.id === 'authModal') closeAuthModal();
+        });
+        document.getElementById('tabRegisterModeBtn').addEventListener('click', () => setAuthTabMode('register'));
+        document.getElementById('tabLoginModeBtn').addEventListener('click', () => setAuthTabMode('login'));
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+          currentUser = null;
+          saveAuthState();
+          closeAuthModal();
+          showToast('ログアウトしました');
+        });
+
+        document.getElementById('authAccountForm').addEventListener('submit', e => {
+          e.preventDefault();
+          const userId = document.getElementById('authUserIdInput').value.trim();
+          const displayName = document.getElementById('authDisplayNameInput').value.trim();
+          const password = document.getElementById('authPasswordInput').value;
+
+          if (!userId || !password) {
+            showToast('IDとパスワードを入力してください', 'error');
+            return;
+          }
+          if (password.length < 4) {
+            showToast('パスワードは4文字以上で設定してください', 'error');
+            return;
+          }
+
+          if (authMode === 'register') {
+            if (!displayName) {
+              showToast('表示名（ニックネーム）を入力してください', 'error');
+              return;
+            }
+            if (accounts.some(a => a.userId === userId)) {
+              showToast('このIDはすでに登録されています。ログインタブからログインしてください', 'error');
+              return;
+            }
+            const newAcc = { userId, displayName, password };
+            accounts.push(newAcc);
+            currentUser = { userId, displayName };
+            saveAuthState();
+            // Auto-fill current forms if empty
+            const ownerInput = document.getElementById('editorOwnerIdInput');
+            if (ownerInput && !ownerInput.value) ownerInput.value = userId;
+            const pNameInput = document.getElementById('participantNameInput');
+            if (pNameInput && !pNameInput.value) pNameInput.value = displayName;
+            closeAuthModal();
+            showToast('ID「' + userId + '」を登録してログインしました！');
+          } else {
+            const found = accounts.find(a => a.userId === userId && a.password === password);
+            if (!found) {
+              showToast('IDまたはパスワードが正しくありません', 'error');
+              return;
+            }
+            currentUser = { userId: found.userId, displayName: found.displayName };
+            saveAuthState();
+            const ownerInput = document.getElementById('editorOwnerIdInput');
+            if (ownerInput && !ownerInput.value) ownerInput.value = found.userId;
+            const pNameInput = document.getElementById('participantNameInput');
+            if (pNameInput && !pNameInput.value) pNameInput.value = found.displayName;
+            closeAuthModal();
+            showToast(found.displayName + ' さんとしてログインしました！');
+          }
+        });
+
+        // Password Verify Modal Events
+        document.getElementById('passwordVerifyCancelBtn').addEventListener('click', closePasswordVerifyModal);
+        document.getElementById('passwordVerifyModal').addEventListener('click', e => {
+          if (e.target.id === 'passwordVerifyModal') closePasswordVerifyModal();
+        });
+        document.getElementById('passwordVerifyOkBtn').addEventListener('click', () => {
+          if (typeof pendingPasswordVerifyCallback === 'function') {
+            pendingPasswordVerifyCallback();
+          }
+        });
+        document.getElementById('passwordVerifyInput').addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (typeof pendingPasswordVerifyCallback === 'function') {
+              pendingPasswordVerifyCallback();
+            }
+          }
+        });
+
+        document.getElementById('scrollToAnswerBtn').addEventListener('click', () => {
+          resetParticipantForm();
+          document.getElementById('answerFormSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          document.getElementById('participantNameInput').focus();
+        });
+
+        document.getElementById('filterBestOnlyToggle').addEventListener('change', () => {
+          renderEventDetail({ preserveForm: true });
+        });
+
+        // Time Preset Select Change ("自分で作れる時間帯" vs "時間指定なし")
+        document.getElementById('defaultTimePreset').addEventListener('change', updateCustomTimeVisibility);
+
+        // Bulk answer buttons
+        document.querySelectorAll('.bulk-status-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const status = btn.getAttribute('data-bulk-status');
+            const ev = getCurrentEvent();
+            if (!ev) return;
+            ev.slots.forEach(s => {
+              draftAnswers[s.id] = status;
+            });
+            renderParticipantDateSelectors();
+          });
+        });
+
+        document.getElementById('cancelEditParticipantBtn').addEventListener('click', () => {
+          resetParticipantForm();
+        });
+
+        // Delete participant with confirmation
+        document.getElementById('deleteParticipantBtn').addEventListener('click', () => {
+          const editingId = document.getElementById('editingParticipantId').value;
+          if (!editingId) return;
+          const ev = getCurrentEvent();
+          if (!ev) return;
+          const target = ev.participants.find(p => p.id === editingId);
+          const targetName = target ? target.name : 'この参加者';
+          openConfirmModal(
+            '回答の削除',
+            targetName + ' さんの出欠回答を削除してもよろしいですか？',
+            () => {
+              ev.participants = ev.participants.filter(p => p.id !== editingId);
+              ev.updatedAt = formatNowTimestamp();
+              saveState();
+              resetParticipantForm();
+              renderEventDetail();
+              showToast(targetName + ' さんの回答を削除しました');
+            }
+          );
+        });
+
+        // Submit participant form (Enforce max 30 participants)
+        document.getElementById('participantForm').addEventListener('submit', e => {
+          e.preventDefault();
+          const name = document.getElementById('participantNameInput').value.trim();
+          const comment = document.getElementById('participantCommentInput').value.trim();
+          const pin = document.getElementById('participantPinInput').value;
+          if (!name) {
+            showToast('お名前を入力してください', 'error');
+            return;
+          }
+
+          const ev = getCurrentEvent();
+          if (!ev) return;
+          const editingId = document.getElementById('editingParticipantId').value;
+
+          if (editingId) {
+            const target = ev.participants.find(p => p.id === editingId);
+            if (target) {
+              target.name = name;
+              target.comment = comment;
+              target.pin = pin;
+              target.answers = Object.assign({}, draftAnswers);
+            }
+            showToast(name + ' さんの出欠を更新しました！');
+          } else {
+            if (ev.participants.length >= MAX_PARTICIPANTS) {
+              showToast('参加人数の上限（最大' + MAX_PARTICIPANTS + '名）に達しているため追加できません', 'error');
+              return;
+            }
+            ev.participants.push({
+              id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+              name,
+              comment,
+              pin,
+              answers: Object.assign({}, draftAnswers)
+            });
+            showToast(name + ' さんの出欠を登録しました！（' + ev.participants.length + '/' + MAX_PARTICIPANTS + '名）');
+          }
+
+          ev.updatedAt = formatNowTimestamp();
+          saveState();
+          resetParticipantForm();
+          renderEventDetail();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Calendar navigation
+        document.getElementById('calPrevMonthBtn').addEventListener('click', () => {
+          calMonth--;
+          if (calMonth < 0) {
+            calMonth = 11;
+            calYear--;
+          }
+          renderMiniCalendar();
+        });
+
+        document.getElementById('calNextMonthBtn').addEventListener('click', () => {
+          calMonth++;
+          if (calMonth > 11) {
+            calMonth = 0;
+            calYear++;
+          }
+          renderMiniCalendar();
+        });
+
+        document.getElementById('editorSlotsTextarea').addEventListener('input', () => {
+          renderMiniCalendar();
+        });
+
+        document.getElementById('clearSlotsBtn').addEventListener('click', () => {
+          document.getElementById('editorSlotsTextarea').value = '';
+          renderMiniCalendar();
+        });
+
+        document.getElementById('addNextWeekendBtn').addEventListener('click', addUpcomingWeekendToTextarea);
+
+        // Cancel editor
+        document.getElementById('cancelEditorBtn').addEventListener('click', () => {
+          if (getCurrentEvent()) switchView('detail');
+        });
+        document.getElementById('cancelEditorBtnBottom').addEventListener('click', () => {
+          if (getCurrentEvent()) switchView('detail');
+        });
+
+        // Save Event Form
+        document.getElementById('eventEditorForm').addEventListener('submit', e => {
+          e.preventDefault();
+          const title = document.getElementById('editorTitleInput').value.trim();
+          const category = document.getElementById('editorCategorySelect').value;
+          const memo = document.getElementById('editorMemoInput').value.trim();
+          const ownerId = document.getElementById('editorOwnerIdInput').value.trim();
+          const editPassword = document.getElementById('editorEventPasswordInput').value;
+          const rawLines = document.getElementById('editorSlotsTextarea').value
+            .split('\n')
+            .map(l => l.trim())
+            .filter(Boolean);
+
+          const uniqueLines = [];
+          rawLines.forEach(line => {
+            if (!uniqueLines.includes(line)) {
+              uniqueLines.push(line);
+            }
+          });
+
+          if (!title) {
+            showToast('イベント名を入力してください', 'error');
+            return;
+          }
+          if (uniqueLines.length === 0) {
+            showToast('候補日を1つ以上追加してください', 'error');
+            return;
+          }
+
+          const editingEventId = document.getElementById('editorEventId').value;
+          if (editingEventId) {
+            const ev = events.find(item => item.id === editingEventId);
+            if (ev) {
+              ev.title = title;
+              ev.category = category;
+              ev.memo = memo;
+              ev.ownerId = ownerId;
+              ev.editPassword = editPassword;
+              ev.updatedAt = formatNowTimestamp();
+
+              const newSlots = uniqueLines.map((label, idx) => {
+                const existingSlot = ev.slots.find(s => s.label === label);
+                return existingSlot ? existingSlot : { id: 's_' + Date.now() + '_' + idx, label };
+              });
+              ev.slots = newSlots;
+
+              ev.participants.forEach(p => {
+                const updatedAns = {};
+                newSlots.forEach(sl => {
+                  updatedAns[sl.id] = p.answers[sl.id] || 'maybe';
+                });
+                p.answers = updatedAns;
+              });
+            }
+            currentEventId = editingEventId;
+            showToast('イベント情報を更新しました！');
+          } else {
+            const newId = 'evt_' + Date.now();
+            const newSlots = uniqueLines.map((label, idx) => ({
+              id: 's_' + Date.now() + '_' + idx,
+              label
+            }));
+            events.unshift({
+              id: newId,
+              title,
+              category,
+              memo,
+              ownerId,
+              editPassword,
+              updatedAt: formatNowTimestamp(),
+              slots: newSlots,
+              participants: []
+            });
+            currentEventId = newId;
+            showToast('新しいイベントを作成しました！');
+          }
+
+          document.getElementById('filterBestOnlyToggle').checked = false;
+          saveState();
+          resetParticipantForm();
+          switchView('detail');
+        });
+
+        // Share Modal Events
+        document.getElementById('shareEventBtn').addEventListener('click', openShareModal);
+        document.getElementById('closeShareModalBtn').addEventListener('click', closeShareModal);
+        document.getElementById('shareModal').addEventListener('click', e => {
+          if (e.target.id === 'shareModal') closeShareModal();
+        });
+        document.getElementById('copySummaryTextBtn').addEventListener('click', () => {
+          const text = document.getElementById('shareSummaryText').value;
+          copyTextToClipboard(text, '募集メッセージをコピーしました！LINE等に貼り付けられます');
+        });
+        document.getElementById('copyShareCodeBtn').addEventListener('click', () => {
+          const code = document.getElementById('shareCodeInput').value;
+          copyTextToClipboard(code, '共有バックアップコードをコピーしました！');
+        });
+
+        // Import Modal Events
+        document.getElementById('navImportBtn').addEventListener('click', () => {
+          document.getElementById('importCodeTextarea').value = '';
+          const modal = document.getElementById('importModal');
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        });
+        document.getElementById('closeImportModalBtn').addEventListener('click', closeImportModal);
+        document.getElementById('cancelImportModalBtn').addEventListener('click', closeImportModal);
+        document.getElementById('importModal').addEventListener('click', e => {
+          if (e.target.id === 'importModal') closeImportModal();
+        });
+        document.getElementById('confirmImportBtn').addEventListener('click', () => {
+          const rawCode = document.getElementById('importCodeTextarea').value.trim();
+          if (!rawCode) {
+            showToast('共有コードを入力してください', 'error');
+            return;
+          }
+          try {
+            const decodedObj = decodeEventFromCode(rawCode);
+            const sanitized = sanitizeEventObject(decodedObj);
+            if (!sanitized) {
+              throw new Error('Invalid structure');
+            }
+            const existingIdx = events.findIndex(e => e.id === sanitized.id);
+            if (existingIdx >= 0) {
+              events[existingIdx] = sanitized;
+            } else {
+              events.unshift(sanitized);
+            }
+            currentEventId = sanitized.id;
+            document.getElementById('filterBestOnlyToggle').checked = false;
+            saveState();
+            resetParticipantForm();
+            closeImportModal();
+            switchView('detail');
+            showToast('「' + sanitized.title + '」を読み込みました！');
+          } catch (err) {
+            showToast('共有コードの形式が正しくありません', 'error');
+          }
+        });
+
+        // Confirm Modal Events
+        document.getElementById('confirmModalCancelBtn').addEventListener('click', closeConfirmModal);
+        document.getElementById('confirmModal').addEventListener('click', e => {
+          if (e.target.id === 'confirmModal') closeConfirmModal();
+        });
+        document.getElementById('confirmModalOkBtn').addEventListener('click', () => {
+          if (typeof pendingConfirmCallback === 'function') {
+            pendingConfirmCallback();
+          }
+          closeConfirmModal();
+        });
+
+        // Close any open modal on Escape key
+        document.addEventListener('keydown', e => {
+          if (e.key === 'Escape') {
+            closeAuthModal();
+            closePasswordVerifyModal();
+            closeShareModal();
+            closeImportModal();
+            closeConfirmModal();
+          }
+        });
+      }
+
+      // Initialize App: Start directly on New Event Creation screen if no events exist
+      loadState();
+      bindEvents();
+      updateHeaderUI();
+      if (events.length === 0) {
+        openCreateEventEditor();
+      } else {
+        resetParticipantForm();
+        switchView('detail');
+      }
+    })();
+  </script>
+</body>
+</html>
